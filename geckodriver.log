@@ -1,0 +1,105 @@
+1754867226850	geckodriver	INFO	Listening on 127.0.0.1:51193
+1754867229869	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofilekPwdnX"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754867230119	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754867230443	Marionette	INFO	Listening on port 51207
+Read port: 51207
+1754867230535	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+1754867250331	Marionette	INFO	Stopped listening on port 51207
+Dynamically enable window occlusion 1
+console.error: "Failed to fetch https://ads.mozilla.org/v1/delete_user:" "NetworkError when attempting to fetch resource."
+console.warn: TopSitesFeed: Failed to fetch data from MARS server: NetworkError when attempting to fetch resource.
+JavaScript error: chrome://remote/content/shared/webdriver/Certificates.sys.mjs, line 79: NS_ERROR_NOT_AVAILABLE: Component returned failure code: 0x80040111 (NS_ERROR_NOT_AVAILABLE) [nsICertOverrideService.setDisableAllSecurityChecksAndLetAttackersInterceptMyData]
+JavaScript error: resource://services-settings/RemoteSettingsClient.sys.mjs, line 101: Error: Unknown callback
+1754867271069	geckodriver	INFO	Listening on 127.0.0.1:51285
+1754867274089	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofilehjfUg4"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754867274341	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754867274623	Marionette	INFO	Listening on port 51307
+Read port: 51307
+1754867274737	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d32abb0a481c4e&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d32c9adb58d99f&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d32cfdadfed99f&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+Exiting due to channel error.
+Exiting due to channel error.
+Exiting due to channel error.
+1754867630325	geckodriver	INFO	Listening on 127.0.0.1:51958
+1754867633346	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofilefjIEMf"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754867633595	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754867633877	Marionette	INFO	Listening on port 51969
+Read port: 51969
+1754867633993	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+JavaScript error: , line 0: TypeError: NetworkError when attempting to fetch resource.
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d3337ea9f4d994&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d335f04df7d9af&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+Exiting due to channel error.
+Exiting due to channel error.
+Exiting due to channel error.
+Exiting due to channel error.
+1754867945089	geckodriver	INFO	Listening on 127.0.0.1:52534
+1754867948129	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofile5SIyxQ"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754867948365	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754867948654	Marionette	INFO	Listening on port 52545
+Read port: 52545
+1754867948774	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+1754867951825	Marionette	INFO	Stopped listening on port 52545
+Dynamically enable window occlusion 1
+console.error: "Failed to fetch https://ads.mozilla.org/v1/delete_user:" "NetworkError when attempting to fetch resource."
+console.warn: TopSitesFeed: Failed to fetch data from MARS server: NetworkError when attempting to fetch resource.
+JavaScript error: chrome://remote/content/shared/webdriver/Certificates.sys.mjs, line 79: NS_ERROR_NOT_AVAILABLE: Component returned failure code: 0x80040111 (NS_ERROR_NOT_AVAILABLE) [nsICertOverrideService.setDisableAllSecurityChecksAndLetAttackersInterceptMyData]
+JavaScript error: resource://services-settings/RemoteSettingsClient.sys.mjs, line 101: Error: Unknown callback
+1754867981794	geckodriver	INFO	Listening on 127.0.0.1:52609
+1754867984819	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofilew8R8fy"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754867985069	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754867985364	Marionette	INFO	Listening on port 52621
+Read port: 52621
+1754867985470	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+Exiting due to channel error.
+Exiting due to channel error.
+Exiting due to channel error.
+Exiting due to channel error.
+1754868015204	geckodriver	INFO	Listening on 127.0.0.1:52737
+1754868018252	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofilew137ir"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754868018485	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754868018777	Marionette	INFO	Listening on port 52750
+Read port: 52750
+1754868018889	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+1754868066458	Marionette	INFO	Stopped listening on port 52750
+Dynamically enable window occlusion 1
+console.error: "Failed to fetch https://ads.mozilla.org/v1/delete_user:" "NetworkError when attempting to fetch resource."
+console.warn: TopSitesFeed: Failed to fetch data from MARS server: NetworkError when attempting to fetch resource.
+JavaScript error: resource://services-settings/RemoteSettingsClient.sys.mjs, line 101: Error: Unknown callback
+1754868092648	geckodriver	INFO	Listening on 127.0.0.1:53036
+1754868095671	mozrunner::runner	INFO	Running command: "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "--marionette" "-no-remote" "-profile" "C:\\Users\\doren\\AppData\\Local\\Temp\\rust_mozprofilevw6Ss9"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1754868095920	Marionette	INFO	Marionette enabled
+Dynamically enable window occlusion 0
+1754868096210	Marionette	INFO	Listening on port 53066
+Read port: 53066
+1754868096319	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d33cc45b611c58&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d33fcfba23d9a6&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/orchestrate/chl_api/v1?ray=96d3408d69b3d9a6&lang=auto, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+1754868308687	Marionette	INFO	Stopped listening on port 53066
+Dynamically enable window occlusion 1
+console.error: "Failed to fetch https://ads.mozilla.org/v1/delete_user:" "NetworkError when attempting to fetch resource."
+console.warn: TopSitesFeed: Failed to fetch data from MARS server: NetworkError when attempting to fetch resource.
+JavaScript error: resource://services-settings/RemoteSettingsClient.sys.mjs, line 101: Error: Unknown callback
