@@ -59,10 +59,10 @@ class GridClickDownloader:
         self.wait = WebDriverWait(self.driver, wait_time)
         self.actions = ActionChains(self.driver)
 
-        # Human behavior parameters
-        self.typing_speed_range = (0.05, 0.2)
-        self.mouse_speed_range = (0.8, 2.0)
-        self.pause_range = (1.0, 3.0)
+        # Human behavior parameters (halved wait times)
+        self.typing_speed_range = (0.025, 0.1)  # Was (0.05, 0.2)
+        self.mouse_speed_range = (0.4, 1.0)  # Was (0.8, 2.0)
+        self.pause_range = (0.5, 1.5)  # Was (1.0, 3.0)
 
         # Browser info for coordinate conversion
         self.browser_pos = None
@@ -174,18 +174,18 @@ class GridClickDownloader:
 
         try:
             if duration is None:
-                duration = random.uniform(*self.mouse_speed_range)
+                duration = random.uniform(0.4, 1.0)  # Halved from 0.8, 2.0
 
             start_x, start_y = start_pos
             end_x, end_y = end_pos
 
-            # Calculate distance and adjust duration
+            # Calculate distance and adjust duration (halved)
             distance = math.sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2)
 
             if distance > 300:
-                duration *= 0.6
+                duration *= 0.3  # Was 0.6
             elif distance < 50:
-                duration *= 1.8
+                duration *= 0.9  # Was 1.8
 
             logger.debug(f"🖱️ Moving mouse from {start_pos} to {end_pos} over {duration:.2f}s")
 
@@ -337,57 +337,94 @@ class GridClickDownloader:
             return False
 
     def _click_everywhere_human_like(self):
-        """Click everywhere using human-like mouse movements"""
+        """Direct human-like clicks at Cloudflare checkbox coordinates"""
         try:
-            logger.info("🤖 HUMAN-LIKE GRID CLICKING PATTERN...")
+            logger.info("🎯 DIRECT HUMAN-LIKE CLICKS at Cloudflare checkbox...")
 
-            # Get viewport dimensions
-            viewport_width = self.driver.execute_script("return window.innerWidth")
-            viewport_height = self.driver.execute_script("return window.innerHeight")
+            # Target coordinates to try
+            targets = [
+                (853, 260),
+                (853, 270),
+                (853, 280),
+                (853, 295),
+                (853, 376),
+                (853, 350),
+            ]
 
-            logger.info(f"📐 Viewport: {viewport_width}x{viewport_height}")
+            # Mouse position monitoring in background
+            import threading
 
-            # Grid parameters with human-like randomization
-            grid_size = 25
-            click_count = 0
-            max_clicks = 500
+            def monitor_mouse_position():
+                """Monitor and print mouse position every 2 seconds"""
+                while True:
+                    try:
+                        if PYAUTOGUI_AVAILABLE:
+                            pos = pyautogui.position()
+                            print(f"🖱️ MOUSE POSITION: {pos}")
+                        time.sleep(2)
+                    except:
+                        break
 
-            # Create grid points with jitter
-            grid_points = []
-            for y in range(50, min(viewport_height - 50, 600), grid_size):
-                for x in range(50, min(viewport_width - 50, 1000), grid_size):
-                    # Add human-like randomization
-                    jitter_x = random.randint(-8, 8)
-                    jitter_y = random.randint(-8, 8)
-                    grid_points.append((x + jitter_x, y + jitter_y))
+            # Start mouse monitoring thread
+            monitor_thread = threading.Thread(target=monitor_mouse_position, daemon=True)
+            monitor_thread.start()
 
-            # Shuffle for more natural pattern
-            random.shuffle(grid_points)
+            for i, (target_web_x, target_web_y) in enumerate(targets, 1):
+                logger.info(f"🎯 Target {i}/2: ({target_web_x}, {target_web_y})")
 
-            # Store initial page state
-            initial_page_text = self.driver.page_source.lower()
+                # Convert webpage coordinates to screen coordinates
+                screen_coords = self.convert_webpage_to_screen_coords(target_web_x, target_web_y)
+                logger.info(f"🖥️ Screen coordinates: {screen_coords}")
 
-            # Human-like grid clicking
-            for web_x, web_y in grid_points:
-                if click_count >= max_clicks:
-                    logger.warning(f"🛑 Reached maximum clicks ({max_clicks})")
-                    break
+                # Get current mouse position
+                current_pos = self.get_current_mouse_position()
+                logger.info(f"📍 Current position: {current_pos}")
 
-                try:
-                    click_count += 1
+                # Reduced human reading/decision time (halved)
+                decision_time = random.uniform(0.75, 1.5)  # Was 1.5-3.0
+                logger.info(f"🤔 Decision time: {decision_time:.1f}s")
+                time.sleep(decision_time)
 
-                    # Log progress every 20 clicks
-                    if click_count % 20 == 0:
-                        logger.info(f"🤖 Human-like click {click_count}: ({web_x}, {web_y})")
+                # Perform human-like movement and click
+                logger.info(f"🖱️ Moving to target {i}...")
 
-                    # Convert to screen coordinates
-                    screen_coords = self.convert_webpage_to_screen_coords(web_x, web_y)
+                # Create natural movement duration (halved)
+                distance = math.sqrt(
+                    (screen_coords[0] - current_pos[0]) ** 2 + (screen_coords[1] - current_pos[1]) ** 2)
+                movement_duration = min(1.25, max(0.4, distance / 800))  # Was min(2.5, max(0.8, distance/400))
 
-                    # Perform human-like click
-                    success = self.human_like_click(screen_coords)
+                logger.info(f"⏱️ Movement duration: {movement_duration:.1f}s (distance: {distance:.0f}px)")
 
-                    # Quick check if challenge is resolved (every 5 clicks)
-                    if click_count % 5 == 0:
+                # Execute human-like movement
+                success = self.human_like_mouse_movement(current_pos, screen_coords, movement_duration)
+
+                if not success and PYAUTOGUI_AVAILABLE:
+                    logger.warning("⚠️ Bezier movement failed, using direct movement")
+                    pyautogui.moveTo(screen_coords[0], screen_coords[1], duration=movement_duration)
+
+                # Brief pause at target (halved)
+                hover_time = random.uniform(0.15, 0.4)  # Was 0.3-0.8
+                logger.info(f"⏸️ Hovering for {hover_time:.1f}s")
+                time.sleep(hover_time)
+
+                # Perform the click
+                logger.info(f"🖱️ Clicking target {i}...")
+                if PYAUTOGUI_AVAILABLE:
+                    # Human-like click with realistic timing (halved)
+                    click_duration = random.uniform(0.05, 0.1)  # Was 0.1-0.2
+                    pyautogui.mouseDown()
+                    time.sleep(click_duration)
+                    pyautogui.mouseUp()
+
+                    logger.info(f"✅ Click {i} completed at ({target_web_x}, {target_web_y})")
+
+                    # Post-click pause (halved)
+                    reaction_time = random.uniform(0.25, 0.6)  # Was 0.5-1.2
+                    logger.info(f"⏳ Reaction time: {reaction_time:.1f}s")
+                    time.sleep(reaction_time)
+
+                    # Check if challenge is resolved after each click
+                    try:
                         current_page_text = self.driver.page_source.lower()
                         challenge_indicators = [
                             "verify you are human",
@@ -399,41 +436,26 @@ class GridClickDownloader:
                             indicator in current_page_text for indicator in challenge_indicators)
 
                         if not challenge_still_present:
-                            logger.info(
-                                f"🎉 SUCCESS! Human-like click {click_count} at ({web_x}, {web_y}) resolved challenge!")
+                            logger.info(f"🎉 SUCCESS! Click {i} at ({target_web_x}, {target_web_y}) resolved challenge!")
                             return True
+                    except Exception as e:
+                        logger.debug(f"Challenge check error: {e}")
 
-                    # Human-like delay between clicks
-                    time.sleep(random.uniform(0.1, 0.3))
+                    # Short delay before next target (halved)
+                    if i < len(targets):
+                        inter_target_delay = random.uniform(0.5, 1.0)  # Was 1.0-2.0
+                        logger.info(f"⏳ Delay before next target: {inter_target_delay:.1f}s")
+                        time.sleep(inter_target_delay)
 
-                    # Occasional fidgeting (humans don't click perfectly systematically)
-                    if click_count % 15 == 0:
-                        current_pos = self.get_current_mouse_position()
-                        fidget_x = current_pos[0] + random.randint(-30, 30)
-                        fidget_y = current_pos[1] + random.randint(-20, 20)
-                        if PYAUTOGUI_AVAILABLE:
-                            self.human_like_mouse_movement(current_pos, (fidget_x, fidget_y), 0.3)
+                else:
+                    logger.error("❌ PyAutoGUI not available for physical clicking")
+                    return False
 
-                except Exception as e:
-                    logger.debug(f"Human-like click at ({web_x}, {web_y}) failed: {e}")
-                    continue
-
-            logger.info(f"🤖 Human-like grid clicking complete. Total clicks: {click_count}")
-
-            # Final check
-            final_page_text = self.driver.page_source.lower()
-            challenge_indicators = ["verify you are human", "checking your browser", "security check"]
-            challenge_still_present = any(indicator in final_page_text for indicator in challenge_indicators)
-
-            if not challenge_still_present:
-                logger.info("🎉 Challenge resolved by human-like clicking!")
-                return True
-            else:
-                logger.warning("❌ Human-like clicking did not resolve challenge")
-                return False
+            logger.info("✅ All target clicks completed")
+            return True
 
         except Exception as e:
-            logger.error(f"❌ Human-like clicking error: {e}")
+            logger.error(f"❌ Direct human-like clicks failed: {e}")
             return False
 
     def _click_at_coordinates(self, x, y):
@@ -628,21 +650,21 @@ class GridClickDownloader:
             logger.debug(f"Human behavior simulation error: {e}")
 
     def simulate_human_typing(self, element, text):
-        """Type text with human-like timing variations"""
+        """Type text with human-like timing variations (halved speeds)"""
         try:
             element.clear()
-            time.sleep(random.uniform(0.3, 0.7))
+            time.sleep(random.uniform(0.15, 0.35))  # Was 0.3-0.7
 
             for i, char in enumerate(text):
                 element.send_keys(char)
 
-                # Variable typing speed
+                # Variable typing speed (halved)
                 if char == ' ':
-                    time.sleep(random.uniform(0.15, 0.4))
+                    time.sleep(random.uniform(0.075, 0.2))  # Was 0.15-0.4
                 elif char in '.,!?;:':
-                    time.sleep(random.uniform(0.25, 0.5))
+                    time.sleep(random.uniform(0.125, 0.25))  # Was 0.25-0.5
                 else:
-                    time.sleep(random.uniform(*self.typing_speed_range))
+                    time.sleep(random.uniform(0.025, 0.1))  # Was 0.05-0.2
 
             logger.info(f"✅ Human-like typing completed")
             return True
@@ -752,9 +774,9 @@ class GridClickDownloader:
                 logger.error(f"💥 ERROR: {str(e)}")
                 failed_downloads.append(term)
 
-            # Delay between searches
+            # Delay between searches (halved)
             if i < len(search_terms):
-                delay = random.uniform(8, 15)
+                delay = random.uniform(4, 7.5)  # Was 8-15
                 logger.info(f"⏳ Waiting {delay:.1f}s before next search...")
                 time.sleep(delay)
 
