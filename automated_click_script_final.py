@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Anna's Archive Downloader - GRID CLICK EVERYWHERE
+Anna's Archive Downloader - GRID CLICK EVERYWHERE with Human-like Fallback
 Systematically clicks all over the page to find the Cloudflare checkbox
+Falls back to human-like movements when grid clicking is needed
 """
 
 import os
 import time
 import random
 import logging
+import math
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -23,6 +25,18 @@ try:
 except ImportError:
     UNDETECTED_AVAILABLE = False
     print("❌ Install: pip install undetected-chromedriver")
+
+try:
+    import pyautogui
+
+    PYAUTOGUI_AVAILABLE = True
+    # Configure pyautogui
+    pyautogui.FAILSAFE = True
+    pyautogui.PAUSE = 0.05
+    pyautogui.MINIMUM_DURATION = 0.1
+except ImportError:
+    PYAUTOGUI_AVAILABLE = False
+    print("❌ Install: pip install pyautogui")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -44,6 +58,16 @@ class GridClickDownloader:
         self.driver = self._setup_chrome()
         self.wait = WebDriverWait(self.driver, wait_time)
         self.actions = ActionChains(self.driver)
+
+        # Human behavior parameters (halved wait times)
+        self.typing_speed_range = (0.025, 0.1)  # Was (0.05, 0.2)
+        self.mouse_speed_range = (0.4, 1.0)  # Was (0.8, 2.0)
+        self.pause_range = (0.5, 1.5)  # Was (1.0, 3.0)
+
+        # Browser info for coordinate conversion
+        self.browser_pos = None
+        self.browser_size = None
+        self._update_browser_info()
 
     def _setup_chrome(self):
         """Setup Chrome with working configuration"""
@@ -118,6 +142,158 @@ class GridClickDownloader:
         except Exception as e:
             logger.warning(f"⚠️ Stealth application failed: {e}")
 
+    def _update_browser_info(self):
+        """Update browser position and size for coordinate conversion"""
+        try:
+            self.browser_pos = self.driver.get_window_position()
+            self.browser_size = self.driver.get_window_size()
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get browser info: {e}")
+            self.browser_pos = {'x': 0, 'y': 0}
+            self.browser_size = {'width': 1366, 'height': 768}
+
+    def get_current_mouse_position(self):
+        """Get current mouse cursor position"""
+        if not PYAUTOGUI_AVAILABLE:
+            logger.warning("⚠️ PyAutoGUI not available, using default position")
+            return (400, 300)
+
+        try:
+            current_pos = pyautogui.position()
+            logger.debug(f"🖱️ Current mouse position: {current_pos}")
+            return current_pos
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get mouse position: {e}")
+            return (400, 300)
+
+    def human_like_mouse_movement(self, start_pos, end_pos, duration=None):
+        """Create human-like mouse movement with bezier curves"""
+        if not PYAUTOGUI_AVAILABLE:
+            logger.warning("⚠️ PyAutoGUI not available, skipping mouse movement")
+            return False
+
+        try:
+            if duration is None:
+                duration = random.uniform(0.4, 1.0)  # Halved from 0.8, 2.0
+
+            start_x, start_y = start_pos
+            end_x, end_y = end_pos
+
+            # Calculate distance and adjust duration (halved)
+            distance = math.sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2)
+
+            if distance > 300:
+                duration *= 0.3  # Was 0.6
+            elif distance < 50:
+                duration *= 0.9  # Was 1.8
+
+            logger.debug(f"🖱️ Moving mouse from {start_pos} to {end_pos} over {duration:.2f}s")
+
+            # Create bezier curve control points
+            control1_x = start_x + (end_x - start_x) * 0.25 + random.randint(-80, 80)
+            control1_y = start_y + (end_y - start_y) * 0.25 + random.randint(-50, 50)
+
+            control2_x = start_x + (end_x - start_x) * 0.75 + random.randint(-50, 50)
+            control2_y = start_y + (end_y - start_y) * 0.75 + random.randint(-30, 30)
+
+            # Generate smooth bezier curve points
+            steps = max(20, int(duration * 60))
+            points = []
+
+            for i in range(steps + 1):
+                t = i / steps
+
+                # Cubic bezier curve calculation
+                x = (1 - t) ** 3 * start_x + 3 * (1 - t) ** 2 * t * control1_x + 3 * (
+                        1 - t) * t ** 2 * control2_x + t ** 3 * end_x
+                y = (1 - t) ** 3 * start_y + 3 * (1 - t) ** 2 * t * control1_y + 3 * (
+                        1 - t) * t ** 2 * control2_y + t ** 3 * end_y
+
+                # Add natural hand tremor
+                tremor_x = random.uniform(-0.8, 0.8)
+                tremor_y = random.uniform(-0.8, 0.8)
+
+                points.append((int(x + tremor_x), int(y + tremor_y)))
+
+            # Execute smooth movement
+            for i, point in enumerate(points):
+                try:
+                    pyautogui.moveTo(point[0], point[1])
+
+                    # Variable speed
+                    speed_factor = 1.0
+                    if i < len(points) * 0.2 or i > len(points) * 0.8:
+                        speed_factor = 1.5
+
+                    time.sleep((duration / len(points)) * speed_factor)
+                except Exception as e:
+                    logger.debug(f"Movement point error: {e}")
+                    continue
+
+            logger.debug("✅ Human-like mouse movement completed")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Mouse movement failed: {e}")
+            return False
+
+    def convert_webpage_to_screen_coords(self, web_x, web_y):
+        """Convert webpage coordinates to screen coordinates"""
+        try:
+            self._update_browser_info()
+
+            # Account for browser chrome
+            chrome_height = 120
+            chrome_width = 8
+
+            screen_x = self.browser_pos['x'] + web_x + chrome_width
+            screen_y = self.browser_pos['y'] + web_y + chrome_height
+
+            return (int(screen_x), int(screen_y))
+        except Exception as e:
+            logger.warning(f"⚠️ Coordinate conversion failed: {e}")
+            return (int(web_x), int(web_y + 120))
+
+    def human_like_click(self, coordinates):
+        """Perform human-like click at screen coordinates"""
+        try:
+            logger.debug(f"🖱️ Performing human-like click at {coordinates}")
+
+            current_pos = self.get_current_mouse_position()
+
+            # Pre-click pause
+            time.sleep(random.uniform(0.1, 0.3))
+
+            # Move mouse to target
+            movement_duration = random.uniform(0.3, 0.8)
+            success = self.human_like_mouse_movement(current_pos, coordinates, movement_duration)
+
+            if not success and PYAUTOGUI_AVAILABLE:
+                pyautogui.moveTo(coordinates[0], coordinates[1], duration=0.2)
+
+            # Hover pause
+            time.sleep(random.uniform(0.05, 0.15))
+
+            # Perform the click
+            if PYAUTOGUI_AVAILABLE:
+                click_duration = random.uniform(0.08, 0.18)
+                pyautogui.mouseDown()
+                time.sleep(click_duration)
+                pyautogui.mouseUp()
+
+                logger.debug("✅ Human-like click completed")
+
+                # Post-click pause
+                time.sleep(random.uniform(0.1, 0.3))
+                return True
+            else:
+                logger.warning("❌ PyAutoGUI not available for clicking")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Human-like click failed: {e}")
+            return False
+
     def handle_cloudflare_grid_click(self):
         """Handle Cloudflare by clicking EVERYWHERE in a grid pattern"""
         try:
@@ -144,13 +320,16 @@ class GridClickDownloader:
                 # Simulate human behavior first
                 self._simulate_human_behavior()
 
-                # Try grid clicking approach
-                success = self._click_everywhere_grid()
+                # Try human-like grid clicking approach
+                success = self._click_everywhere_human_like()
 
                 if success:
+                    # Wait 100 seconds after bypassing Cloudflare
+                    logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
+                    time.sleep(200)
                     return self._wait_for_completion()
                 else:
-                    logger.warning("❌ Grid clicking failed")
+                    logger.warning("❌ Human-like grid clicking failed")
                     return False
             else:
                 logger.info("✅ No Cloudflare challenge detected")
@@ -160,89 +339,127 @@ class GridClickDownloader:
             logger.error(f"❌ Grid click Cloudflare handling error: {e}")
             return False
 
-    def _click_everywhere_grid(self):
-        """Click everywhere in a systematic grid pattern"""
+    def _click_everywhere_human_like(self):
+        """Direct human-like clicks at Cloudflare checkbox coordinates"""
         try:
-            logger.info("🎯 CLICKING EVERYWHERE IN GRID PATTERN...")
+            logger.info("🎯 DIRECT HUMAN-LIKE CLICKS at Cloudflare checkbox...")
 
-            # Get viewport dimensions
-            viewport_width = self.driver.execute_script("return window.innerWidth")
-            viewport_height = self.driver.execute_script("return window.innerHeight")
+            # Target coordinates to try
+            targets = [
+                (853, 260),
+                (853, 270),
+                (853, 280),
+            ]
 
-            logger.info(f"📐 Viewport: {viewport_width}x{viewport_height}")
+            # Mouse position monitoring in background
+            import threading
 
-            # Grid parameters - click every 25 pixels
-            grid_size = 25
-            click_count = 0
-            max_clicks = 500  # Safety limit
-
-            # Store initial page state
-            initial_page_text = self.driver.page_source.lower()
-
-            # Systematic grid clicking
-            for y in range(50, min(viewport_height - 50, 600), grid_size):
-                for x in range(50, min(viewport_width - 50, 1000), grid_size):
-                    if click_count >= max_clicks:
-                        logger.warning(f"🛑 Reached maximum clicks ({max_clicks})")
+            def monitor_mouse_position():
+                """Monitor and print mouse position every 2 seconds"""
+                while True:
+                    try:
+                        if PYAUTOGUI_AVAILABLE:
+                            pos = pyautogui.position()
+                            print(f"🖱️ MOUSE POSITION: {pos}")
+                        time.sleep(2)
+                    except:
                         break
 
+            # Start mouse monitoring thread
+            monitor_thread = threading.Thread(target=monitor_mouse_position, daemon=True)
+            monitor_thread.start()
+
+            for i, (target_web_x, target_web_y) in enumerate(targets, 1):
+                logger.info(f"🎯 Target {i}/2: ({target_web_x}, {target_web_y})")
+
+                # Convert webpage coordinates to screen coordinates
+                screen_coords = self.convert_webpage_to_screen_coords(target_web_x, target_web_y)
+                logger.info(f"🖥️ Screen coordinates: {screen_coords}")
+
+                # Get current mouse position
+                current_pos = self.get_current_mouse_position()
+                logger.info(f"📍 Current position: {current_pos}")
+
+                # Reduced human reading/decision time (halved)
+                decision_time = random.uniform(0.75, 1.5)  # Was 1.5-3.0
+                logger.info(f"🤔 Decision time: {decision_time:.1f}s")
+                time.sleep(decision_time)
+
+                # Perform human-like movement and click
+                logger.info(f"🖱️ Moving to target {i}...")
+
+                # Create natural movement duration (halved)
+                distance = math.sqrt(
+                    (screen_coords[0] - current_pos[0]) ** 2 + (screen_coords[1] - current_pos[1]) ** 2)
+                movement_duration = min(1.25, max(0.4, distance / 800))  # Was min(2.5, max(0.8, distance/400))
+
+                logger.info(f"⏱️ Movement duration: {movement_duration:.1f}s (distance: {distance:.0f}px)")
+
+                # Execute human-like movement
+                success = self.human_like_mouse_movement(current_pos, screen_coords, movement_duration)
+
+                if not success and PYAUTOGUI_AVAILABLE:
+                    logger.warning("⚠️ Bezier movement failed, using direct movement")
+                    pyautogui.moveTo(screen_coords[0], screen_coords[1], duration=movement_duration)
+
+                # Brief pause at target (halved)
+                hover_time = random.uniform(0.15, 0.4)  # Was 0.3-0.8
+                logger.info(f"⏸️ Hovering for {hover_time:.1f}s")
+                time.sleep(hover_time)
+
+                # Perform the click
+                logger.info(f"🖱️ Clicking target {i}...")
+                if PYAUTOGUI_AVAILABLE:
+                    # Human-like click with realistic timing (halved)
+                    click_duration = random.uniform(0.05, 0.1)  # Was 0.1-0.2
+                    pyautogui.mouseDown()
+                    time.sleep(click_duration)
+                    pyautogui.mouseUp()
+
+                    logger.info(f"✅ Click {i} completed at ({target_web_x}, {target_web_y})")
+
+                    # Post-click pause (halved)
+                    reaction_time = random.uniform(0.25, 0.6)  # Was 0.5-1.2
+                    logger.info(f"⏳ Reaction time: {reaction_time:.1f}s")
+                    time.sleep(reaction_time)
+
+                    # Check if challenge is resolved after each click
                     try:
-                        click_count += 1
+                        current_page_text = self.driver.page_source.lower()
+                        challenge_indicators = [
+                            "verify you are human",
+                            "checking your browser",
+                            "security check"
+                        ]
 
-                        # Log progress every 20 clicks
-                        if click_count % 20 == 0:
-                            logger.info(f"🎯 Grid click {click_count}: ({x}, {y})")
+                        challenge_still_present = any(
+                            indicator in current_page_text for indicator in challenge_indicators)
 
-                        # Perform click at coordinates
-                        self._click_at_coordinates(x, y)
-
-                        # Quick check if challenge is resolved (every 5 clicks)
-                        if click_count % 5 == 0:
-                            current_page_text = self.driver.page_source.lower()
-                            challenge_indicators = [
-                                "verify you are human",
-                                "checking your browser",
-                                "security check"
-                            ]
-
-                            challenge_still_present = any(
-                                indicator in current_page_text for indicator in challenge_indicators)
-
-                            if not challenge_still_present:
-                                logger.info(f"🎉 SUCCESS! Grid click {click_count} at ({x}, {y}) resolved challenge!")
-                                return True
-
-                        # Small delay between clicks
-                        time.sleep(0.1)
-
+                        if not challenge_still_present:
+                            logger.info(f"🎉 SUCCESS! Click {i} at ({target_web_x}, {target_web_y}) resolved challenge!")
+                            return True
                     except Exception as e:
-                        logger.debug(f"Grid click at ({x}, {y}) failed: {e}")
-                        continue
+                        logger.debug(f"Challenge check error: {e}")
 
-                # Break outer loop if max clicks reached
-                if click_count >= max_clicks:
-                    break
+                    # Short delay before next target (halved)
+                    if i < len(targets):
+                        inter_target_delay = random.uniform(0.5, 1.0)  # Was 1.0-2.0
+                        logger.info(f"⏳ Delay before next target: {inter_target_delay:.1f}s")
+                        time.sleep(inter_target_delay)
 
-            logger.info(f"🎯 Grid clicking complete. Total clicks: {click_count}")
+                else:
+                    logger.error("❌ PyAutoGUI not available for physical clicking")
+                    return False
 
-            # Final check
-            final_page_text = self.driver.page_source.lower()
-            challenge_indicators = ["verify you are human", "checking your browser", "security check"]
-            challenge_still_present = any(indicator in final_page_text for indicator in challenge_indicators)
-
-            if not challenge_still_present:
-                logger.info("🎉 Challenge resolved by grid clicking!")
-                return True
-            else:
-                logger.warning("❌ Grid clicking did not resolve challenge")
-                return False
+            logger.info("✅ All target clicks completed")
+            return True
 
         except Exception as e:
-            logger.error(f"❌ Grid clicking error: {e}")
+            logger.error(f"❌ Direct human-like clicks failed: {e}")
             return False
 
     def _click_at_coordinates(self, x, y):
-        """Click at specific coordinates using multiple methods"""
+        """Click at specific coordinates using multiple methods (LEGACY - kept for compatibility)"""
         try:
             # Method 1: ActionChains click
             try:
@@ -322,6 +539,9 @@ class GridClickDownloader:
                     current_page_text = self.driver.page_source.lower()
                     if "verify you are human" not in current_page_text:
                         logger.info(f"🎉 SUCCESS! Random click {click_count} at ({x}, {y}) resolved challenge!")
+                        # Wait 100 seconds after bypassing Cloudflare
+                        logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
+                        time.sleep(100)
                         return True
 
                 time.sleep(0.05)
@@ -332,6 +552,9 @@ class GridClickDownloader:
             final_page_text = self.driver.page_source.lower()
             if "verify you are human" not in final_page_text:
                 logger.info("🎉 Challenge resolved by random clicking!")
+                # Wait 100 seconds after bypassing Cloudflare
+                logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
+                time.sleep(100)
                 return True
             else:
                 logger.warning("❌ Random clicking did not resolve challenge")
@@ -376,6 +599,9 @@ class GridClickDownloader:
                     current_page_text = self.driver.page_source.lower()
                     if "verify you are human" not in current_page_text:
                         logger.info(f"🎉 SUCCESS! Spiral click {click_count} at ({x}, {y}) resolved challenge!")
+                        # Wait 100 seconds after bypassing Cloudflare
+                        logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
+                        time.sleep(100)
                         return True
 
                 # Advance spiral
@@ -391,6 +617,9 @@ class GridClickDownloader:
             final_page_text = self.driver.page_source.lower()
             if "verify you are human" not in final_page_text:
                 logger.info("🎉 Challenge resolved by spiral clicking!")
+                # Wait 100 seconds after bypassing Cloudflare
+                logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
+                time.sleep(100)
                 return True
             else:
                 logger.warning("❌ Spiral clicking did not resolve challenge")
@@ -432,12 +661,36 @@ class GridClickDownloader:
         except Exception as e:
             logger.debug(f"Human behavior simulation error: {e}")
 
+    def simulate_human_typing(self, element, text):
+        """Type text with human-like timing variations (halved speeds)"""
+        try:
+            element.clear()
+            time.sleep(random.uniform(0.15, 0.35))  # Was 0.3-0.7
+
+            for i, char in enumerate(text):
+                element.send_keys(char)
+
+                # Variable typing speed (halved)
+                if char == ' ':
+                    time.sleep(random.uniform(0.075, 0.2))  # Was 0.15-0.4
+                elif char in '.,!?;:':
+                    time.sleep(random.uniform(0.125, 0.25))  # Was 0.25-0.5
+                else:
+                    time.sleep(random.uniform(0.025, 0.1))  # Was 0.05-0.2
+
+            logger.info(f"✅ Human-like typing completed")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Human-like typing failed: {e}")
+            return False
+
     def _wait_for_completion(self):
         """Wait for challenge completion"""
         try:
             logger.info("⏳ Waiting for challenge completion...")
 
-            max_wait = 30  # Reduced since we already found success
+            max_wait = 30
             initial_url = self.driver.current_url
 
             for i in range(max_wait):
@@ -533,9 +786,9 @@ class GridClickDownloader:
                 logger.error(f"💥 ERROR: {str(e)}")
                 failed_downloads.append(term)
 
-            # Delay between searches
+            # Delay between searches (halved)
             if i < len(search_terms):
-                delay = random.uniform(8, 15)
+                delay = random.uniform(4, 7.5)  # Was 8-15
                 logger.info(f"⏳ Waiting {delay:.1f}s before next search...")
                 time.sleep(delay)
 
@@ -557,7 +810,7 @@ class GridClickDownloader:
                 logger.info(f"  ✗ {term}")
 
     def process_single_search(self, search_term, click_method="grid"):
-        """Process single search with grid clicking"""
+        """Process single search with grid clicking - FIXED to skip second book finding"""
         try:
             logger.info(f"🌐 Navigating to Anna's Archive...")
 
@@ -603,14 +856,17 @@ class GridClickDownloader:
                 logger.error("❌ Search box not found")
                 return False
 
-            # Perform search
+            # Perform search with human-like typing
             search_box.clear()
             time.sleep(1)
 
-            # Type search term
-            for char in search_term:
-                search_box.send_keys(char)
-                time.sleep(random.uniform(0.05, 0.15))
+            # Type search term with human-like behavior
+            success = self.simulate_human_typing(search_box, search_term)
+            if not success:
+                # Fallback to regular typing
+                for char in search_term:
+                    search_box.send_keys(char)
+                    time.sleep(random.uniform(0.05, 0.15))
 
             time.sleep(random.uniform(1, 2))
             search_box.send_keys(Keys.RETURN)
@@ -661,17 +917,18 @@ class GridClickDownloader:
 
             time.sleep(random.uniform(3, 6))
 
-            # Attempt download
-            return self.attempt_download(click_method)
+            # FIXED: Skip finding another book, go directly to download attempt
+            logger.info("📥 Going directly to download from current book page...")
+            return self.attempt_download_from_current_page(click_method)
 
         except Exception as e:
             logger.error(f"❌ Search processing error: {str(e)}")
             return False
 
-    def attempt_download(self, click_method="grid"):
-        """Attempt download with grid clicking"""
+    def attempt_download_from_current_page(self, click_method="grid"):
+        """FIXED: Attempt download directly from the current book page (skip finding another book)"""
         try:
-            logger.info("📥 Attempting download...")
+            logger.info("📥 Attempting download from current book page...")
 
             # Handle Cloudflare on book page
             if click_method == "grid":
@@ -686,50 +943,94 @@ class GridClickDownloader:
 
             time.sleep(random.uniform(2, 4))
 
-            # Find download link
-            download_selectors = [
+            # FIXED: Look specifically for slow download link first
+            logger.info("🔍 Looking for slow download link...")
+            slow_download_link = None
+
+            # Try multiple selectors for slow download
+            slow_download_selectors = [
                 "a[href*='slow_download']",
-                "a[href*='fast_download']",
-                "a[href*='download']"
+                "a:contains('Slow download')",
+                "a:contains('slow download')",
+                "a[href*='slowdownload']"
             ]
 
-            download_link = None
-            for selector in download_selectors:
+            for selector in slow_download_selectors:
                 try:
-                    download_link = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    logger.info(f"📥 Found download link")
-                    break
+                    if 'contains' in selector:
+                        # Use XPath for text-based search
+                        xpath_selector = f"//a[contains(text(), 'slow download') or contains(text(), 'Slow download')]"
+                        slow_download_link = self.driver.find_element(By.XPATH, xpath_selector)
+                    else:
+                        slow_download_link = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                    if slow_download_link:
+                        logger.info(f"📥 Found slow download link")
+                        break
                 except:
                     continue
 
-            if not download_link:
-                # Search all links
+            # If no slow download found, try general download selectors
+            if not slow_download_link:
+                logger.info("🔍 Slow download not found, looking for any download link...")
+                download_selectors = [
+                    "a[href*='fast_download']",
+                    "a[href*='download']",
+                    "a:contains('Download')",
+                    "a:contains('download')"
+                ]
+
+                for selector in download_selectors:
+                    try:
+                        if 'contains' in selector:
+                            # Use XPath for text-based search
+                            xpath_selector = f"//a[contains(text(), 'download') or contains(text(), 'Download')]"
+                            slow_download_link = self.driver.find_element(By.XPATH, xpath_selector)
+                        else:
+                            slow_download_link = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                        if slow_download_link:
+                            logger.info(f"📥 Found download link")
+                            break
+                    except:
+                        continue
+
+            # If still no download link found, search all links
+            if not slow_download_link:
+                logger.info("🔍 No specific download link found, searching all links...")
                 all_links = self.driver.find_elements(By.TAG_NAME, "a")
                 for link in all_links:
                     href = link.get_attribute('href')
-                    if href and 'download' in href.lower():
-                        download_link = link
+                    text = link.text.lower()
+                    if href and ('download' in href.lower() or 'download' in text):
+                        slow_download_link = link
+                        logger.info(f"📥 Found download link in general search")
                         break
 
-            if download_link:
+            if slow_download_link:
                 logger.info("✅ Clicking download link")
-                self.driver.execute_script("arguments[0].scrollIntoView();", download_link)
+                self.driver.execute_script("arguments[0].scrollIntoView();", slow_download_link)
                 time.sleep(1)
 
                 try:
-                    download_link.click()
+                    slow_download_link.click()
                 except:
-                    self.driver.execute_script("arguments[0].click();", download_link)
+                    self.driver.execute_script("arguments[0].click();", slow_download_link)
 
                 # Handle download page
                 return self.handle_download_page(click_method)
             else:
-                logger.warning("❌ No download links found")
+                logger.warning("❌ No download links found on current page")
                 return False
 
         except Exception as e:
             logger.error(f"❌ Download attempt failed: {str(e)}")
             return False
+
+    def attempt_download(self, click_method="grid"):
+        """DEPRECATED: Legacy method - use attempt_download_from_current_page instead"""
+        logger.warning("⚠️ Using deprecated attempt_download method. Use attempt_download_from_current_page instead.")
+        return self.attempt_download_from_current_page(click_method)
 
     def handle_download_page(self, click_method="grid"):
         """Handle download page with grid clicking"""
@@ -806,20 +1107,30 @@ class GridClickDownloader:
 
 # Main execution
 if __name__ == "__main__":
-    print("🚀 GRID CLICK EVERYWHERE DOWNLOADER")
-    print("=" * 60)
+    print("🚀 GRID CLICK EVERYWHERE DOWNLOADER with HUMAN-LIKE FALLBACK")
+    print("=" * 70)
     print("🎯 Systematically clicks everywhere to find Cloudflare checkbox")
+    print("🤖 Uses human-like mouse movements when grid clicking is needed")
     print("🔲 Grid pattern: Every 25 pixels across the page")
     print("🎲 Random pattern: Random coordinates across viewport")
     print("🌀 Spiral pattern: Spiral outward from center")
-    print("=" * 60)
+    print("🖱️ Human-like: Bezier curves, natural timing, real mouse control")
+    print("⏱️ FIXED: 100 second wait after Cloudflare bypass")
+    print("📥 FIXED: Direct download from first search result (no second book)")
+    print("=" * 70)
     print()
+
+    if not PYAUTOGUI_AVAILABLE:
+        print("⚠️ WARNING: PyAutoGUI not available")
+        print("   Install with: pip install pyautogui")
+        print("   Human-like movements will be disabled")
+        print()
 
     # Configuration
     PROXY = None  # Set to "ip:port" for proxy
     CLICK_METHOD = "grid"  # Options: "grid", "random", "spiral"
 
-    print(f"🎯 Using {CLICK_METHOD.upper()} clicking method")
+    print(f"🎯 Using {CLICK_METHOD.upper()} clicking method with human-like enhancements")
     print()
 
     try:
@@ -840,13 +1151,17 @@ if __name__ == "__main__":
                 logger.info("🔄 Using fallback term...")
                 downloader.search_and_download_all(fallback_terms, CLICK_METHOD)
 
-            logger.info("🎉 Grid click session complete!")
+            logger.info("🎉 Enhanced grid click session complete!")
 
     except KeyboardInterrupt:
         logger.info("⏹️ Session interrupted")
     except Exception as e:
         logger.error(f"💥 Session failed: {e}")
-        print(f"\n💡 Try different click methods:")
-        print("   CLICK_METHOD = 'grid'   # Systematic grid")
+        print(f"\n💡 Requirements:")
+        print("   pip install undetected-chromedriver")
+        print("   pip install pyautogui (for human-like movements)")
+        print("   pip install selenium")
+        print(f"\n🎯 Try different click methods:")
+        print("   CLICK_METHOD = 'grid'   # Systematic grid with human-like movements")
         print("   CLICK_METHOD = 'random' # Random clicking")
         print("   CLICK_METHOD = 'spiral' # Spiral pattern")

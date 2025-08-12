@@ -624,7 +624,7 @@ if __name__ == "__main__":
             import keyboard
 
         with ManualClickDownloader(
-                download_dir="../annas_archive_downloads",
+                download_dir="../../annas_archive_downloads",
                 proxy=PROXY,
                 manual_mode=MANUAL_MODE
         ) as downloader:

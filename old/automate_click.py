@@ -346,9 +346,6 @@ class GridClickDownloader:
                 (853, 260),
                 (853, 270),
                 (853, 280),
-                (853, 295),
-                (853, 376),
-                (853, 350),
             ]
 
             # Mouse position monitoring in background
@@ -1076,7 +1073,7 @@ if __name__ == "__main__":
 
     try:
         with GridClickDownloader(
-                download_dir="../annas_archive_downloads",
+                download_dir="../../annas_archive_downloads",
                 proxy=PROXY
         ) as downloader:
 

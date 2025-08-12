@@ -800,7 +800,7 @@ if __name__ == "__main__":
 
     try:
         with CompleteAnnasArchiveDownloader(
-                download_dir="../annas_archive_downloads",
+                download_dir="../../annas_archive_downloads",
                 proxy=PROXY,
                 user_data_dir=CHROME_PROFILE
         ) as downloader:
