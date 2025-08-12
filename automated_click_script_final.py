@@ -3,20 +3,27 @@
 Anna's Archive Downloader - GRID CLICK EVERYWHERE with Human-like Fallback
 Systematically clicks all over the page to find the Cloudflare checkbox
 Falls back to human-like movements when grid clicking is needed
+
+
+TODO: Fixes to make: We might want a search string for re-ranking. We may want a prio-check.
+                     We might want to check for epubs instead.
+                     We may want an automated detection of cloud fare box coordinates.
+
+
 """
 
-import os
-import time
-import random
 import logging
 import math
-from selenium import webdriver
+import os
+import random
+import time
+
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
 
 try:
     import undetected_chromedriver as uc
@@ -326,7 +333,7 @@ class GridClickDownloader:
                 if success:
                     # Wait 100 seconds after bypassing Cloudflare
                     logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
-                    time.sleep(200)
+                    time.sleep(2)
                     return self._wait_for_completion()
                 else:
                     logger.warning("❌ Human-like grid clicking failed")
@@ -541,7 +548,7 @@ class GridClickDownloader:
                         logger.info(f"🎉 SUCCESS! Random click {click_count} at ({x}, {y}) resolved challenge!")
                         # Wait 100 seconds after bypassing Cloudflare
                         logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
-                        time.sleep(100)
+                        time.sleep(1)
                         return True
 
                 time.sleep(0.05)
@@ -554,7 +561,7 @@ class GridClickDownloader:
                 logger.info("🎉 Challenge resolved by random clicking!")
                 # Wait 100 seconds after bypassing Cloudflare
                 logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
-                time.sleep(100)
+                time.sleep(1)
                 return True
             else:
                 logger.warning("❌ Random clicking did not resolve challenge")
@@ -601,7 +608,7 @@ class GridClickDownloader:
                         logger.info(f"🎉 SUCCESS! Spiral click {click_count} at ({x}, {y}) resolved challenge!")
                         # Wait 100 seconds after bypassing Cloudflare
                         logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
-                        time.sleep(100)
+                        time.sleep(1)
                         return True
 
                 # Advance spiral
@@ -619,7 +626,7 @@ class GridClickDownloader:
                 logger.info("🎉 Challenge resolved by spiral clicking!")
                 # Wait 100 seconds after bypassing Cloudflare
                 logger.info("✅ Cloudflare bypass successful! Waiting 100 seconds...")
-                time.sleep(100)
+                time.sleep(1)
                 return True
             else:
                 logger.warning("❌ Spiral clicking did not resolve challenge")
@@ -810,7 +817,7 @@ class GridClickDownloader:
                 logger.info(f"  ✗ {term}")
 
     def process_single_search(self, search_term, click_method="grid"):
-        """Process single search with grid clicking - FIXED to skip second book finding"""
+        """Process single search with grid clicking - FIXED to click on actual first search result"""
         try:
             logger.info(f"🌐 Navigating to Anna's Archive...")
 
@@ -883,31 +890,105 @@ class GridClickDownloader:
             elif click_method == "spiral":
                 self._click_everywhere_spiral()
 
-            # Find first result
+            # FIXED: Find the actual first search result from Anna's Archive
             first_result = None
-            result_selectors = [
-                "h3 a",
-                "a[href*='/md5/']",
-                ".text-xl a"
+
+            # Anna's Archive specific selectors for search results
+            # Based on your images, the search results have specific classes and structure
+            anna_archive_result_selectors = [
+                # Try to find the main search result container first
+                "div[class*='js-vim-focus']",  # The container with js-vim-focus class
+                "a.js-vim-focus",  # Direct anchor with js-vim-focus
+
+                # Fallback selectors based on typical Anna's Archive structure
+                "div.mb-4 a[href*='/md5/']",  # Search result links in margin-bottom containers
+                "a[href*='/md5/'][href*='epub']",  # Direct links to EPUB files
+
+                # More general fallbacks
+                "a[href*='/md5/']",  # Any MD5 hash links (book detail pages)
+
+                # Last resort - look for any clickable elements with book titles
+                "a[title*='Manufacturing Consent']" if 'manufacturing consent' in search_term.lower() else None,
             ]
 
-            for selector in result_selectors:
+            # Remove None values
+            anna_archive_result_selectors = [s for s in anna_archive_result_selectors if s]
+
+            logger.info("🔍 Looking for Anna's Archive search results...")
+
+            for i, selector in enumerate(anna_archive_result_selectors):
                 try:
+                    logger.info(f"🎯 Trying selector {i + 1}: {selector}")
                     results = self.driver.find_elements(By.CSS_SELECTOR, selector)
+
                     if results:
-                        first_result = results[0]
-                        logger.info(f"📖 Found result")
-                        break
-                except:
+                        # Filter results to make sure we get the actual search results, not navigation
+                        valid_results = []
+
+                        for result in results:
+                            try:
+                                href = result.get_attribute('href')
+                                text = result.text
+
+                                # Skip navigation elements, footer links, etc.
+                                if href and '/md5/' in href and len(text) > 5:
+                                    # Additional validation - make sure it's not a random link
+                                    if any(word in text.lower() for word in search_term.lower().split()[:2]):
+                                        valid_results.append(result)
+                                    elif 'manufacturing' in text.lower() or 'consent' in text.lower():
+                                        valid_results.append(result)
+                                    else:
+                                        # If text doesn't match, still add if it has book-like characteristics
+                                        if len(text) > 20 and not any(nav_word in text.lower() for nav_word in
+                                                                      ['home', 'about', 'contact', 'donate', 'search']):
+                                            valid_results.append(result)
+                            except:
+                                continue
+
+                        if valid_results:
+                            first_result = valid_results[0]  # Get the first valid result
+                            logger.info(f"📖 Found first search result using selector: {selector}")
+                            logger.info(f"📖 Result text: {first_result.text[:100]}...")
+                            break
+
+                except Exception as e:
+                    logger.debug(f"Selector {selector} failed: {e}")
                     continue
 
+            # If still no result found, try a more aggressive search
             if not first_result:
-                logger.error("❌ No results found")
+                logger.info("🔍 No results with specific selectors, trying comprehensive search...")
+                try:
+                    # Get all links on the page
+                    all_links = self.driver.find_elements(By.TAG_NAME, "a")
+
+                    for link in all_links:
+                        try:
+                            href = link.get_attribute('href')
+                            text = link.text
+
+                            # Look for book detail page links
+                            if href and '/md5/' in href and text and len(text) > 10:
+                                # Check if text contains search terms or looks like a book title
+                                if (any(word in text.lower() for word in search_term.lower().split()[:2]) or
+                                        len(text) > 30):  # Longer text likely to be book titles
+                                    first_result = link
+                                    logger.info(f"📖 Found result in comprehensive search: {text[:100]}...")
+                                    break
+                        except:
+                            continue
+
+                except Exception as e:
+                    logger.error(f"Comprehensive search failed: {e}")
+
+            if not first_result:
+                logger.error("❌ No search results found with any method")
                 return False
 
-            # Click result
-            logger.info(f"🖱️ Clicking result...")
-            self.driver.execute_script("arguments[0].scrollIntoView();", first_result)
+            # Click the result
+            logger.info(f"🖱️ Clicking first search result...")
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
+                                       first_result)
             time.sleep(2)
 
             try:
@@ -917,12 +998,277 @@ class GridClickDownloader:
 
             time.sleep(random.uniform(3, 6))
 
-            # FIXED: Skip finding another book, go directly to download attempt
-            logger.info("📥 Going directly to download from current book page...")
+            # Now go directly to download attempt from the book detail page
+            logger.info("📥 Going to download from book detail page...")
             return self.attempt_download_from_current_page(click_method)
 
         except Exception as e:
             logger.error(f"❌ Search processing error: {str(e)}")
+            return False
+
+    def handle_download_page(self, click_method="grid"):
+        """Handle download page with specific targeting of search results"""
+        try:
+            logger.info("📄 Handling download page...")
+
+            # Handle Cloudflare on download page
+            if click_method == "grid":
+                self.handle_cloudflare_grid_click()
+            elif click_method == "random":
+                self._click_everywhere_random()
+            elif click_method == "spiral":
+                self._click_everywhere_spiral()
+
+            time.sleep(random.uniform(3, 6))
+
+            # First, try to find search results with the specific class
+            logger.info("🔍 Looking for search results with specific class...")
+
+            # Target the specific class structure from Anna's Archive search results
+            search_result_selectors = [
+                "a.js-vim-focus.h-\\[110px\\].custom-a",  # CSS selector for the exact class
+                "a[class*='js-vim-focus'][class*='h-[110px]'][class*='custom-a']",  # More flexible matching
+                ".js-vim-focus.custom-a",  # Simplified version
+                "a.js-vim-focus"  # Most basic version
+            ]
+
+            # class="js-vim-focus h-[110px] custom-a flex items-center relative
+
+            top_result = None
+
+            for selector in search_result_selectors:
+                try:
+                    results = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    if results:
+                        top_result = results[0]  # Get the first (top) result
+                        logger.info(f"📖 Found top search result using selector: {selector}")
+                        break
+                except Exception as e:
+                    logger.debug(f"Selector {selector} failed: {e}")
+                    continue
+
+            if top_result:
+                logger.info("🎯 Clicking on top search result...")
+                try:
+                    # Scroll the element into view
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
+                                               top_result)
+                    time.sleep(2)
+
+                    # Try to click the element
+                    top_result.click()
+                    logger.info("✅ Successfully clicked top search result!")
+                    time.sleep(random.uniform(3, 6))
+
+                    # Now handle the book detail page
+                    return self.handle_book_detail_page(click_method)
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Direct click failed: {e}, trying JavaScript click...")
+                    try:
+                        self.driver.execute_script("arguments[0].click();", top_result)
+                        logger.info("✅ JavaScript click successful!")
+                        time.sleep(random.uniform(3, 6))
+                        return self.handle_book_detail_page(click_method)
+                    except Exception as e2:
+                        logger.error(f"❌ JavaScript click also failed: {e2}")
+
+            # Fallback: Check for wait page or other download elements
+            logger.info("🔄 Fallback: Checking for wait page or direct download elements...")
+            page_text = self.driver.page_source.lower()
+            wait_indicators = ["please wait", "seconds", "preparing"]
+
+            if any(indicator in page_text for indicator in wait_indicators):
+                logger.info("⏳ Wait page detected, waiting for download...")
+                return self.wait_for_download_elements()
+            else:
+                # Look for any download links as final fallback
+                return self.find_and_click_download_links()
+
+        except Exception as e:
+            logger.error(f"❌ Download page error: {str(e)}")
+            return False
+
+    def handle_book_detail_page(self, click_method="grid"):
+        """Handle the individual book detail page after clicking a search result"""
+        try:
+            logger.info("📚 Handling book detail page...")
+
+            # Handle Cloudflare on book detail page
+            if click_method == "grid":
+                self.handle_cloudflare_grid_click()
+            elif click_method == "random":
+                self._click_everywhere_random()
+            elif click_method == "spiral":
+                self._click_everywhere_spiral()
+
+            time.sleep(random.uniform(3, 6))
+
+            # Look for download links on the book detail page
+            logger.info("🔍 Looking for download links on book detail page...")
+
+            download_link_selectors = [
+                "a[href*='slow_download']",
+                "a[href*='fast_download']",
+                "a[href*='download']",
+                "a:contains('Download')",
+                "a:contains('Slow download')",
+                "a:contains('Fast download')"
+            ]
+
+            download_link = None
+
+            for selector in download_link_selectors:
+                try:
+                    if 'contains' in selector:
+                        # Use XPath for text-based search
+                        text_to_find = selector.split("'")[1]
+                        xpath_selector = f"//a[contains(text(), '{text_to_find}')]"
+                        download_link = self.driver.find_element(By.XPATH, xpath_selector)
+                    else:
+                        download_link = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                    if download_link:
+                        logger.info(f"📥 Found download link: {selector}")
+                        break
+                except:
+                    continue
+
+            if download_link:
+                logger.info("🎯 Clicking download link...")
+                try:
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
+                                               download_link)
+                    time.sleep(2)
+                    download_link.click()
+                    logger.info("✅ Download link clicked!")
+                    time.sleep(random.uniform(3, 6))
+
+                    # Handle the actual download page
+                    return self.wait_for_download_elements()
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Download link click failed: {e}")
+                    try:
+                        self.driver.execute_script("arguments[0].click();", download_link)
+                        logger.info("✅ JavaScript download link click successful!")
+                        time.sleep(random.uniform(3, 6))
+                        return self.wait_for_download_elements()
+                    except:
+                        logger.error("❌ All download link click methods failed")
+
+            logger.warning("❌ No download links found on book detail page")
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ Book detail page error: {str(e)}")
+            return False
+
+    def wait_for_download_elements(self):
+        """Wait for actual download elements and initiate download"""
+        try:
+            logger.info("⏳ Waiting for download elements...")
+
+            max_wait = 120
+            for i in range(max_wait):
+                time.sleep(1)
+
+                try:
+                    # Look for actual file download links
+                    download_elements = self.driver.find_elements(By.XPATH,
+                                                                  "//a[contains(@href, '.pdf') or contains(@href, '.epub') or contains(@href, '.djvu') or "
+                                                                  "contains(text(), 'Download') or contains(text(), 'Click here') or contains(text(), 'download')]"
+                                                                  )
+
+                    if download_elements:
+                        logger.info(f"📥 Found {len(download_elements)} download elements")
+                        for element in download_elements[:3]:  # Try first 3 elements
+                            try:
+                                href = element.get_attribute('href')
+                                text = element.text
+                                logger.info(f"🔗 Trying download element: {text} -> {href}")
+
+                                self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                                time.sleep(1)
+                                element.click()
+                                logger.info("✅ Download initiated!")
+                                time.sleep(10)
+                                return True
+                            except Exception as click_error:
+                                logger.debug(f"Click failed for element: {click_error}")
+                                continue
+
+                except Exception as search_error:
+                    logger.debug(f"Search error: {search_error}")
+                    continue
+
+                if i % 30 == 0 and i > 0:
+                    logger.info(f"⏳ Still waiting... ({i}/{max_wait})")
+
+            logger.warning("⚠️ Download timeout - no download elements found")
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ Wait for download elements error: {str(e)}")
+            return False
+
+    def find_and_click_download_links(self):
+        """Fallback method to find any download links on current page"""
+        try:
+            logger.info("🔄 Fallback: Looking for any download links...")
+
+            # Cast a wide net for any download-related links
+            all_links = self.driver.find_elements(By.TAG_NAME, "a")
+            download_candidates = []
+
+            for link in all_links:
+                try:
+                    href = link.get_attribute('href') or ""
+                    text = link.text.lower()
+
+                    # Check if this looks like a download link
+                    download_indicators = [
+                        '.pdf' in href.lower(),
+                        '.epub' in href.lower(),
+                        '.djvu' in href.lower(),
+                        'download' in href.lower(),
+                        'download' in text,
+                        'click here' in text,
+                        'get' in text and len(text) < 20
+                    ]
+
+                    if any(download_indicators):
+                        download_candidates.append(link)
+
+                except:
+                    continue
+
+            if download_candidates:
+                logger.info(f"📥 Found {len(download_candidates)} download candidates")
+
+                # Try the first few candidates
+                for i, candidate in enumerate(download_candidates[:3]):
+                    try:
+                        href = candidate.get_attribute('href') or ""
+                        text = candidate.text
+                        logger.info(f"🎯 Trying candidate {i + 1}: {text} -> {href}")
+
+                        self.driver.execute_script("arguments[0].scrollIntoView();", candidate)
+                        time.sleep(1)
+                        candidate.click()
+                        logger.info("✅ Download candidate clicked!")
+                        time.sleep(10)
+                        return True
+
+                    except Exception as e:
+                        logger.debug(f"Candidate {i + 1} failed: {e}")
+                        continue
+
+            logger.warning("❌ No download links found in fallback search")
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ Fallback download search error: {str(e)}")
             return False
 
     def attempt_download_from_current_page(self, click_method="grid"):
@@ -1032,66 +1378,6 @@ class GridClickDownloader:
         logger.warning("⚠️ Using deprecated attempt_download method. Use attempt_download_from_current_page instead.")
         return self.attempt_download_from_current_page(click_method)
 
-    def handle_download_page(self, click_method="grid"):
-        """Handle download page with grid clicking"""
-        try:
-            logger.info("📄 Handling download page...")
-
-            # Handle Cloudflare on download page
-            if click_method == "grid":
-                self.handle_cloudflare_grid_click()
-            elif click_method == "random":
-                self._click_everywhere_random()
-            elif click_method == "spiral":
-                self._click_everywhere_spiral()
-
-            time.sleep(random.uniform(3, 6))
-
-            # Check for wait page
-            page_text = self.driver.page_source.lower()
-            wait_indicators = ["please wait", "seconds", "preparing"]
-
-            if any(indicator in page_text for indicator in wait_indicators):
-                logger.info("⏳ Wait page detected, waiting for download...")
-
-                # Wait for download elements
-                max_wait = 120
-                for i in range(max_wait):
-                    time.sleep(1)
-
-                    try:
-                        download_elements = self.driver.find_elements(By.XPATH,
-                                                                      "//a[contains(@href, '.pdf') or contains(@href, '.epub') or contains(text(), 'Download') or contains(text(), 'Click here')]")
-
-                        if download_elements:
-                            logger.info(f"📥 Found download elements")
-                            for element in download_elements:
-                                try:
-                                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                                    time.sleep(1)
-                                    element.click()
-                                    logger.info("✅ Download initiated!")
-                                    time.sleep(10)
-                                    return True
-                                except:
-                                    continue
-
-                    except:
-                        continue
-
-                    if i % 30 == 0 and i > 0:
-                        logger.info(f"⏳ Still waiting... ({i}/{max_wait})")
-
-                logger.warning("⚠️ Download timeout")
-                return False
-            else:
-                logger.info("✅ Direct download page")
-                time.sleep(10)
-                return True
-
-        except Exception as e:
-            logger.error(f"❌ Download page error: {str(e)}")
-            return False
 
     def close(self):
         """Close browser"""

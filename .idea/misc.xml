@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Cite_Grabber" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Cite_Grabber" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="CiteGrabberFinal" project-jdk-type="Python SDK" />
 </project>
